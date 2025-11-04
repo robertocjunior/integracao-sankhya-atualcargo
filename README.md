@@ -74,7 +74,7 @@ services:
     
     # Constrói a imagem diretamente do repositório GitHub
     build:
-      context: https://github.com/robertocjunior/integracao-sankhya-atualcargo.git
+      context: https://github.com/robertocjunior/integracao-sankhya-atualcargo.git#main
       dockerfile: Dockerfile
     
     # Nome do container que será criado
