@@ -7,6 +7,8 @@ WORKDIR /app
 
 # 3. Copia os arquivos de dependência
 COPY package.json ./
+COPY package-lock.json ./ 
+
 # Usamos 'npm ci' que é mais rápido e seguro para builds
 RUN npm ci
 

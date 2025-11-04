@@ -6,214 +6,154 @@ O serviço é projetado para ser robusto, gerenciando automaticamente as sessõe
 
 ---
 
-### 📋 Índice
-
-1. [Funcionalidades](#-funcionalidades)
-2. [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-3. [Como Funciona (O Fluxo)](#-como-funciona-o-fluxo-da-integração)
-4. [Instalação e Configuração](#-instalação-e-configuração)
-5. [Como Executar](#️-como-executar)
-6. [Monitoramento e Logs](#-monitoramento-e-logs)
-
----
-
 ### ✨ Funcionalidades
 
-*   🛰️ **Sincronização de Frota:** Busca a localização de todos os veículos da Atualcargo em tempo real.
-*   🔄 **Mapeamento de Ignição:** Converte o status `ignition` ("ON" / "OFF") para o padrão do Sankhya ("S" / "N").
-*   🚫 **Controle de Duplicidade:** Consulta o último registro no Sankhya e insere apenas localizações mais recentes, evitando dados repetidos.
-*   🔑 **Gestão de Sessão:** Lida automaticamente com a expiração de tokens, realizando novos logins no Sankhya e na Atualcargo conforme necessário.
-*   📝 **Logs Robustos:** Utiliza `winston` para registrar operações (`app.log`) e erros (`error.log`), facilitando o monitoramento.
-*   🚀 **Pronto para Produção 24/7:** Utiliza Docker e PM2 para garantir que o serviço rode continuamente e reinicie automaticamente em caso de falhas.
+* 🛰️ **Sincronização de Frota:** Busca a localização de todos os veículos da Atualcargo em tempo real.
+* 🔄 **Mapeamento de Ignição:** Converte o status `ignition` ("ON" / "OFF") para o padrão do Sankhya ("S" / "N").
+* 🚫 **Controle de Duplicidade:** Consulta o último registro no Sankhya e insere apenas localizações mais recentes, evitando dados repetidos.
+* 🔑 **Gestão de Sessão:** Lida automaticamente com a expiração de tokens, realizando novos logins no Sankhya e na Atualcargo conforme necessário.
+* 📝 **Logs Robustos:** Utiliza `winston` para registrar operações (`app.log`) e erros (`error.log`), facilitando o monitoramento.
+* 🚀 **Pronto para Produção 24/7:** Utiliza Docker e PM2 para garantir que o serviço rode continuamente e reinicie automaticamente em caso de falhas.
 
 ### 🛠️ Tecnologias Utilizadas
 
-*   **Node.js**: Ambiente de execução do serviço.
-*   **Docker**: Containerização para implantação em produção.
-*   **PM2**: Gerenciador de processos para Node.js, garantindo alta disponibilidade.
-*   **Winston**: Biblioteca de logging.
-*   **Axios**: Cliente HTTP para comunicação com as APIs.
+* **Node.js**: Ambiente de execução do serviço.
+* **Docker**: Containerização para implantação em produção.
+* **Docker Compose**: Orquestração do container e das variáveis de ambiente.
+* **PM2**: Gerenciador de processos para Node.js, garantindo alta disponibilidade.
+* **Winston**: Biblioteca de logging.
+* **Axios**: Cliente HTTP para comunicação com as APIs.
 
 ---
 
 ### ⚙️ Como Funciona (O Fluxo da Integração)
 
 <details>
-  <summary>Clique para expandir e ver o ciclo de execução detalhado</summary>
-  
-  O serviço opera em um ciclo contínuo, orquestrado pelo `app.js`:
+<summary>Clique para expandir e ver o ciclo de execução detalhado</summary>
 
-  1.  **Início do Ciclo:** O serviço é iniciado.
-  2.  **Login (Atualcargo):** Faz login na API da Atualcargo para obter um token de autenticação (válido por 5 minutos).
-  3.  **Espera Estratégica:** Aguarda 65 segundos (configurável) para evitar o *Rate Limit* (Erro 425) da API.
-  4.  **Coleta (Atualcargo):** Busca a última localização de toda a frota na rota `/api/positions/v1/last`.
-  5.  **Login (Sankhya):** Faz login na API do Sankhya (MGE) para obter um `JSessionID`.
-  6.  **Mapeamento (Sankhya):** Executa uma query no Sankhya (`DbExplorerSP.executeQuery`) para buscar o `CODVEICULO` correspondente a cada `PLACA`.
-  7.  **Verificação (Sankhya):** Executa uma segunda query para buscar a data/hora (`DATHOR`) do último registro salvo para cada `CODVEICULO`.
-  8.  **Filtragem:** O serviço compara os dados em memória:
-      *   Ignora placas não encontradas no Sankhya.
-      *   Ignora posições cuja data/hora (`pos.date`) é igual ou anterior à `DATHOR` já registrada.
-  9.  **Gravação (Sankhya):** Salva todos os registros novos e válidos na tabela `AD_LOCATCAR` usando o `DatasetSP.save`.
-  10. **Pausa:** Aguarda um tempo configurável (padrão: 5 minutos) e reinicia o ciclo a partir da Etapa 4. Novos logins só são feitos se a sessão expirar.
+O serviço opera em um ciclo contínuo, orquestrado pelo `app.js`:
+
+1.  **Início do Ciclo:** O serviço é iniciado.
+2.  **Verificação de Cache:** O serviço verifica se possui dados de posições em cache.
+3.  **Etapa 1: Atualcargo (Se o cache estiver vazio)**
+    *   Faz login na API da Atualcargo para obter um token.
+    *   Aguarda 65 segundos (configurável) para evitar o *Rate Limit* (Erro 425).
+    *   Busca a última localização de toda a frota na rota `/api/positions/v1/last`.
+    *   Salva os dados recebidos no cache.
+4.  **Etapa 2: Sankhya (Se o cache contiver dados)**
+    *   Faz login na API do Sankhya (MGE) para obter um `JSessionID`.
+    *   Executa uma query no Sankhya (`DbExplorerSP.executeQuery`) para buscar o `CODVEICULO` correspondente a cada `PLACA`.
+    *   Executa uma segunda query para buscar a data/hora (`DATHOR`) do último registro salvo para cada `CODVEICULO`.
+    *   Filtra os dados em cache, ignorando posições cuja data/hora (`pos.date`) é igual ou anterior à `DATHOR` já registrada.
+    *   Salva todos os registros novos na tabela `AD_LOCATCAR` usando o `DatasetSP.save`.
+5.  **Conclusão do Ciclo:**
+    *   Se a Etapa 2 foi bem-sucedida, o cache é limpo.
+    *   Se a Etapa 2 falhou (ex: Sankhya offline), o cache é mantido e a Etapa 2 será tentada novamente após 90 segundos, pulando a Etapa 1.
+6.  **Pausa:** O serviço aguarda 5 minutos (configurável) antes de iniciar um novo ciclo completo (Etapa 1).
+
 </details>
 
 ---
 
-### 🔧 Instalação e Configuração
+### 🚀 Como Executar (Produção 24/7)
 
-**Pré-requisitos:**
-*   Node.js (v18 ou superior)
-*   Docker (Recomendado para produção)
+Este método é o único recomendado para produção. Ele usa o `docker-compose` para baixar o código do GitHub, construir a imagem e rodar o container com todas as variáveis de ambiente necessárias.
 
-#### 1. Arquivo de Ambiente (`.env`)
+**Não é necessário clonar o repositório.**
 
-Crie um arquivo chamado `.env` na raiz do projeto, copie o conteúdo abaixo e preencha com suas credenciais.
+#### Passo 1: Crie o arquivo `docker-compose.yml`
 
-```dotenv
-# =======================================
-# API ATUALCARGO (RASTREAMOS.APP)
-# =======================================
-ATUALCARGO_URL=https://external.atualcargo.com.br
-ATUALCARGO_API_KEY=SUAAPIKEYAQUI
-ATUALCARGO_USERNAME=SEUUSERNAMEAQUI
-ATUALCARGO_PASSWORD=SUASENHAAQUI
+Em um diretório vazio no seu servidor (ex: `/opt/integracao-sankhya`), crie um arquivo chamado `docker-compose.yml` e cole o conteúdo abaixo.
 
-# =======================================
-# API SANKHYA
-# =======================================
-# URL base do MGE
-SANKHYA_URL=http://sankhya.com.br:8026/mge
-SANKHYA_USER=ADMIN
-SANKHYA_PASSWORD=teste
-
-# =======================================
-# CONFIGURAÇÕES DO CICLO
-# =======================================
-# Tempo de espera após login na Atualcargo para evitar Rate Limit (Erro 425)
-WAIT_AFTER_LOGIN_MS=65000
-
-# Tempo de espera entre os ciclos de busca (padrão: 5 minutos)
-WAIT_BETWEEN_CYCLES_MS=300000
-
-# Tempo de espera antes de tentar reconectar após um erro
-WAIT_AFTER_ERROR_MS=30000
-
-# Timeout máximo para a API de posições da Atualcargo (padrão: 130 segundos)
-ATUALCARGO_POSITION_TIMEOUT_MS=130000
-```
-
-#### 2. Instalar Dependências
-
-```bash
-npm install
-```
-
-#### 3. [NOVO] Arquivo `docker-compose.yml`
-
-Para facilitar a execução em produção, crie um arquivo `docker-compose.yml` na raiz do projeto com o seguinte conteúdo:
+**⚠️ Importante:** Preencha os valores de exemplo (`SEU..._AQUI`) com suas credenciais reais.
 
 ```yaml
-version: '3.8'
-
 services:
-  app:
-    build: .
-    image: integracao-sankhya-atualcargo # Nome da imagem a ser gerada
+  
+  integracao-sankhya:
+    
+    # Constrói a imagem diretamente do repositório GitHub
+    build:
+      context: https://github.com/robertocjunior/integracao-sankhya-atualcargo.git
+      dockerfile: Dockerfile
+    
+    # Nome do container que será criado
     container_name: sankhya-service
+    
+    # Garante que o container sempre reinicie
     restart: always
-    env_file:
-      - ./.env
+    
+    # Injeta as credenciais e configurações como variáveis de ambiente
+    environment:
+      # --- API ATUALCARGO ---
+      ATUALCARGO_URL: "https://external.atualcargo.com.br"
+      ATUALCARGO_API_KEY: "SUA_CHAVE_API_ATUALCARGO_AQUI"
+      ATUALCARGO_USERNAME: "SEU_USUARIO_ATUALCARGO_AQUI"
+      ATUALCARGO_PASSWORD: "SUA_SENHA_ATUALCARGO_AQUI"
+      
+      # --- API SANKHYA ---
+      SANKHYA_URL: "http://seu.sankhya.com.br:8180/mge"
+      SANKHYA_USER: "SEU_USUARIO_SANKHYA_AQUI"
+      SANKHYA_PASSWORD: "SUA_SENHA_SANKHYA_AQUI"
+      
+      # --- CONFIGURAÇÕES DO CICLO ---
+      WAIT_AFTER_LOGIN_MS: "65000"
+      WAIT_BETWEEN_CYCLES_MS: "300000"
+      WAIT_AFTER_ERROR_MS: "90000"
+      ATUALCARGO_POSITION_TIMEOUT_MS: "130000"
+
+    # Gerenciamento de Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
----
+#### Passo 2: Suba o Serviço
 
-### ▶️ Como Executar
-
-#### 1. Modo de Desenvolvimento (Local)
-Ideal para testes rápidos. O terminal deve permanecer aberto.
+No terminal, dentro do diretório onde você criou o `docker-compose.yml`, execute:
 
 ```bash
-npm start
+docker-compose up -d --build
 ```
 
-#### 2. Modo de Produção 24/7 (com Docker Compose)
-Este é o método recomendado. Ele constrói a imagem e inicia o contêiner em segundo plano, garantindo que o serviço reinicie automaticamente.
+**O que este comando faz:**
 
-Na raiz do projeto, execute:
-```bash
-docker-compose up --build -d
-```
+*   `docker-compose up`: Inicia o serviço.
+*   `-d`: Roda em modo "detached" (em segundo plano).
+*   `--build`: Força o Docker a baixar a versão mais recente do código do GitHub e construir a imagem. (Use este comando sempre que quiser atualizar o serviço).
 
-Seu serviço agora está rodando 24/7! Para pará-lo, use `docker-compose down`.
+Pronto! Seu serviço está no ar.
 
 ---
 
 ### 📊 Monitoramento e Logs
 
 #### Via Docker Compose (Recomendado)
-Use o comando abaixo para ver os logs do serviço em tempo real.
+
+Use o comando abaixo (no mesmo diretório do `docker-compose.yml`) para ver os logs do serviço em tempo real.
 
 ```bash
 docker-compose logs -f
 ```
 
-#### Via Arquivos (Local)
-Os logs são salvos automaticamente na pasta `/logs/` (criada na primeira execução).
+(Pressione `Ctrl+C` para sair dos logs).
 
-*   `logs/app.log`: Contém todos os logs de informação e sucesso.
-*   `logs/error.log`: Contém apenas os logs de erro.
-```bash
-npm install
-```
+#### Via Arquivos (Dentro do Container)
 
----
-
-### ▶️ Como Executar
-
-#### 1. Modo de Desenvolvimento (Local)
-Ideal para testes rápidos. O terminal deve permanecer aberto.
+O serviço também escreve logs em arquivos *dentro* do container. Você pode acessá-los para uma análise mais profunda se necessário:
 
 ```bash
-npm start
+# Entra no terminal do container
+docker exec -it sankhya-service /bin/sh
+
+# Navega até a pasta de logs
+cd logs
+
+# Vê o log de aplicação
+cat app.log
+
+# Sai do container
+exit
 ```
-
-#### 2. Modo de Produção 24/7 (Recomendado com Docker)
-Este método cria um container que roda o serviço em segundo plano e reinicia automaticamente.
-
-**Passo 1: Construir a Imagem Docker**
-
-Na raiz do projeto (onde está o `Dockerfile`), execute:
-```bash
-docker build -t integracao-sankhya .
-```
-
-**Passo 2: Rodar o Container**
-
-O comando abaixo inicia o container em modo `detached` (`-d`), garante que ele sempre reinicie (`--restart always`) e injeta as credenciais do arquivo `.env`.
-
-```bash
-docker run -d \
-  --name "sankhya-service" \
-  --restart always \
-  --env-file ./.env \
-  integracao-sankhya
-```
-
-Seu serviço agora está rodando 24/7!
-
----
-
-### 📊 Monitoramento e Logs
-
-#### Via Docker (Recomendado)
-Use o nome do container definido no comando `docker run` para ver os logs em tempo real.
-
-```bash
-docker logs -f sankhya-service
-```
-
-#### Via Arquivos (Local)
-Os logs são salvos automaticamente na pasta `/logs/` (criada na primeira execução).
-
-*   `logs/app.log`: Contém todos os logs de informação e sucesso.
-*   `logs/error.log`: Contém apenas os logs de erro.
