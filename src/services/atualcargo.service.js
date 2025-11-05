@@ -3,7 +3,6 @@ import { config } from '../config/index.js';
 import logger from '../utils/logger.js';
 import { AtualcargoTokenError } from '../utils/errors.js';
 
-// [!!] MUDANÇA AQUI: importando o 'timeout' da config
 const { url, apiKey, username, password, timeout: positionTimeout } = config.atualcargo;
 
 /**
@@ -24,10 +23,9 @@ export async function loginAtualcargo() {
       }
     );
 
-    // [!!] MUDANÇA AQUI: O token está na raiz da resposta
     if (response.data?.token) {
       logger.info('Login na Atualcargo bem-sucedido.');
-      return response.data.token; // [!!] MUDANÇA AQUI
+      return response.data.token;
     }
 
     logger.error('Falha no login da Atualcargo: Token não encontrado.', response.data);
@@ -35,6 +33,7 @@ export async function loginAtualcargo() {
 
   } catch (error) {
     logger.error(`Erro crítico ao fazer login na Atualcargo: ${error.message}`);
+    // [MODIFICADO] Garantir que a palavra "Atualcargo" esteja no erro
     throw new Error(`Falha no login da Atualcargo: ${error.message}`);
   }
 }
@@ -52,7 +51,6 @@ export async function getAtualcargoPositions(token) {
         'Authorization': `Bearer ${token}`,
         'access-key': apiKey,
       },
-      // [!!] MUDANÇA AQUI: Timeout estendido para a API
       timeout: positionTimeout,
     });
 
@@ -61,22 +59,29 @@ export async function getAtualcargoPositions(token) {
       return response.data.data; // Retorna o array de posições
     }
 
-    logger.warn('Resposta inesperada da API de posições:', response.data);
+    logger.warn('Resposta inesperada da API de posições da Atualcargo:', response.data);
     return [];
 
   } catch (error) {
-    // [!!] MUDANÇA AQUI: Tratar erro de timeout
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
       logger.error('Timeout ao buscar posições da Atualcargo. A API demorou mais que o esperado.');
+      // Este erro já inclui "Atualcargo"
       throw new Error('Timeout da API da Atualcargo excedido.');
     }
 
     if (error.response?.status === 401 || error.response?.status === 403) {
       logger.warn('Token da Atualcargo expirou (401/403).');
-      // Lança um erro específico para o orquestrador tratar
       throw new AtualcargoTokenError('Token da Atualcargo expirado.');
     }
+
+    // [NOVO] Trata especificamente o erro 425
+    if (error.response?.status === 425) {
+      logger.warn('Erro 425 (Too Early / Rate Limit) da Atualcargo.');
+      throw new Error('Falha da Atualcargo (Rate Limit 425).');
+    }
+
     logger.error(`Erro ao buscar posições da Atualcargo: ${error.message}`);
-    throw new Error(`Falha ao buscar posições: ${error.message}`);
+    // [MODIFICADO] Garantir que a palavra "Atualcargo" esteja no erro genérico
+    throw new Error(`Falha ao buscar posições da Atualcargo: ${error.message}`);
   }
 }
