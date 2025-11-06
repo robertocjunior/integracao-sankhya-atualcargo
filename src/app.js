@@ -8,21 +8,32 @@ import * as sankhya from './services/sankhya.service.js';
 
 // --- Gerenciamento de Estado das Sessões ---
 let atualcargoToken = null;
+let atualcargoTokenTimestamp = null; // [NOVO] Guarda o timestamp do token
 let sankhyaSessionId = null;
 let cachedVehiclePositions = null;
 
 // --- Gerenciamento de contingência Sankhya ---
-let currentSankhyaUrl = config.sankhya.url; // Começa com a URL principal
+let currentSankhyaUrl = config.sankhya.url;
 let primaryLoginAttempts = 0;
-const MAX_PRIMARY_ATTEMPTS = 2; // Tenta 2 vezes no principal antes de ir para contingência
+const MAX_PRIMARY_ATTEMPTS = 2;
 
 /**
  * Garante que temos um token válido da Atualcargo.
  */
 async function ensureAtualcargoToken() {
+  // [MODIFICADO] Verificação proativa de expiração
+  const now = Date.now();
+  if (atualcargoTokenTimestamp && (now - atualcargoTokenTimestamp > config.atualcargo.tokenExpirationMs)) {
+    logger.info(`Token da Atualcargo expirou (limite de ${config.atualcargo.tokenExpirationMs / 60000} min). Forçando renovação.`);
+    atualcargoToken = null;
+    atualcargoTokenTimestamp = null;
+  }
+  
+  // Lógica original de verificação
   if (!atualcargoToken) {
-    logger.info('Token da Atualcargo ausente. Solicitando novo login...');
+    logger.info('Token da Atualcargo ausente ou expirado. Solicitando novo login...');
     atualcargoToken = await atualcargo.loginAtualcargo();
+    atualcargoTokenTimestamp = Date.now(); // [MODIFICADO] Define o timestamp do novo token
     
     logger.info(`Aguardando ${config.cycle.waitAfterLoginMs / 1000}s após login...`);
     await delay(config.cycle.waitAfterLoginMs);
@@ -132,6 +143,7 @@ export async function startApp() {
       if (error instanceof AtualcargoTokenError) {
         logger.warn('Forçando re-login da Atualcargo no próximo ciclo.');
         atualcargoToken = null;
+        atualcargoTokenTimestamp = null; // [MODIFICADO] Limpa o timestamp
         cachedVehiclePositions = null;
       
       // 2. Erro de Token/Auth do SANKHYA
@@ -151,17 +163,15 @@ export async function startApp() {
       } else {
         logger.warn(`Erro inesperado ou de rede: ${error.message}`);
         
-        // [!!] LÓGICA CORRIGIDA [!!]
-        // Verifica se o erro é da ATUALCARGO (usando toLowerCase para segurança)
         if (error.message.toLowerCase().includes('atualcargo')) {
             logger.warn('Erro de rede ou Rate Limit (425) na Atualcargo. Limpando token e cache.');
             atualcargoToken = null;
+            atualcargoTokenTimestamp = null; // [MODIFICADO] Limpa o timestamp
             cachedVehiclePositions = null;
         
-        // Se não for da Atualcargo, é do SANKHYA (ou inesperado)
         } else {
             logger.warn('Erro de rede no Sankhya. Iniciando lógica de contingência.');
-            sankhyaSessionId = null; // Força re-login
+            sankhyaSessionId = null;
 
             if (config.sankhya.contingencyUrl) {
                 if (currentSankhyaUrl === config.sankhya.url) {
