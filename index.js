@@ -1,4 +1,4 @@
-import { startApp } from './src/app.js';
+import { startService } from './src/app.js'; // <--- CORRIGIDO
 import logger from './src/utils/logger.js';
 
 // Capturador global de erros não tratados
@@ -12,4 +12,4 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Inicia a aplicação
-startApp();
+startService(); // <--- CORRIGIDO
