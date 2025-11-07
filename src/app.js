@@ -8,7 +8,7 @@ import * as sankhya from './services/sankhya.service.js';
 
 // --- Gerenciamento de Estado das Sessões ---
 let atualcargoToken = null;
-let atualcargoTokenTimestamp = null; // [NOVO] Guarda o timestamp do token
+let atualcargoTokenTimestamp = null;
 let sankhyaSessionId = null;
 let cachedVehiclePositions = null;
 
@@ -21,7 +21,6 @@ const MAX_PRIMARY_ATTEMPTS = 2;
  * Garante que temos um token válido da Atualcargo.
  */
 async function ensureAtualcargoToken() {
-  // [MODIFICADO] Verificação proativa de expiração
   const now = Date.now();
   if (atualcargoTokenTimestamp && (now - atualcargoTokenTimestamp > config.atualcargo.tokenExpirationMs)) {
     logger.info(`Token da Atualcargo expirou (limite de ${config.atualcargo.tokenExpirationMs / 60000} min). Forçando renovação.`);
@@ -29,11 +28,10 @@ async function ensureAtualcargoToken() {
     atualcargoTokenTimestamp = null;
   }
   
-  // Lógica original de verificação
   if (!atualcargoToken) {
     logger.info('Token da Atualcargo ausente ou expirado. Solicitando novo login...');
     atualcargoToken = await atualcargo.loginAtualcargo();
-    atualcargoTokenTimestamp = Date.now(); // [MODIFICADO] Define o timestamp do novo token
+    atualcargoTokenTimestamp = Date.now();
     
     logger.info(`Aguardando ${config.cycle.waitAfterLoginMs / 1000}s após login...`);
     await delay(config.cycle.waitAfterLoginMs);
@@ -77,7 +75,8 @@ async function runAtualcargoStep() {
 }
 
 /**
- * ETAPA 2: Processa e salva os dados no Sankhya (usando o cache).
+ * [MODIFICADO] ETAPA 2: Processa e salva os dados no Sankhya (usando o cache).
+ * Agora separa Veículos (AD_LOCATCAR) de Iscas (AD_LOCATISC).
  */
 async function runSankhyaStep() {
   if (!cachedVehiclePositions) {
@@ -85,11 +84,17 @@ async function runSankhyaStep() {
     return;
   }
   
-  logger.info(`Processando ${cachedVehiclePositions.length} posições do cache para o Sankhya...`);
-  
-  const plates = [...new Set(cachedVehiclePositions.map(pos => pos.plate).filter(p => p))];
-  if (plates.length === 0) {
-    logger.info('Nenhuma placa válida nos dados do cache. Limpando cache.');
+  logger.info(`Processando ${cachedVehiclePositions.length} posições totais do cache...`);
+
+  // [NOVO] Separa veículos de iscas
+  const vehiclePositions = cachedVehiclePositions.filter(p => p.plate && !p.plate.toUpperCase().startsWith('ISCA'));
+  const iscaPositions = cachedVehiclePositions.filter(p => p.plate && p.plate.toUpperCase().startsWith('ISCA'));
+
+  const vehiclePlates = [...new Set(vehiclePositions.map(pos => pos.plate))];
+  const iscaPlates = [...new Set(iscaPositions.map(pos => pos.plate))];
+
+  if (vehiclePlates.length === 0 && iscaPlates.length === 0) {
+    logger.info('Nenhuma placa válida (veículo ou isca) nos dados do cache. Limpando cache.');
     cachedVehiclePositions = null;
     return;
   }
@@ -97,25 +102,53 @@ async function runSankhyaStep() {
   try {
     await ensureSankhyaSession(); 
 
-    const vehicleMap = await sankhya.getSankhyaVehicleCodes(sankhyaSessionId, plates, currentSankhyaUrl);
-    const lastTimestamps = await sankhya.getLastRecordedTimestamps(sankhyaSessionId, currentSankhyaUrl);
-    
-    await sankhya.savePositionsToSankhya(
-      sankhyaSessionId, 
-      cachedVehiclePositions, 
-      vehicleMap,
-      lastTimestamps,
-      currentSankhyaUrl
-    );
-    
-    logger.info('Dados salvos no Sankhya com sucesso. Limpando cache.');
+    // --- 1. Processa VEÍCULOS (AD_LOCATCAR) ---
+    if (vehiclePositions.length > 0) {
+      logger.info(`Processando ${vehiclePositions.length} posições de VEÍCULOS...`);
+      const vehicleMap = await sankhya.getSankhyaVehicleCodes(sankhyaSessionId, vehiclePlates, currentSankhyaUrl);
+      const lastVehicleTimestamps = await sankhya.getLastRecordedTimestamps(sankhyaSessionId, currentSankhyaUrl);
+      
+      await sankhya.savePositionsToSankhya(
+        sankhyaSessionId, 
+        vehiclePositions, 
+        vehicleMap,
+        lastVehicleTimestamps,
+        currentSankhyaUrl
+      );
+    } else {
+      logger.info('Nenhuma posição de VEÍCULO para processar.');
+    }
+
+    // --- 2. Processa ISCAS (AD_LOCATISC) ---
+    if (iscaPositions.length > 0) {
+      logger.info(`Processando ${iscaPositions.length} posições de ISCAS...`);
+      // Nota: iscaPlates é o 'NUMISCA' que é o valor da 'plate' da API
+      const iscaMap = await sankhya.getSankhyaIscaSequences(sankhyaSessionId, iscaPlates, currentSankhyaUrl);
+      const lastIscaTimestamps = await sankhya.getLastIscaTimestamps(sankhyaSessionId, currentSankhyaUrl);
+      
+      await sankhya.saveIscaPositionsToSankhya(
+        sankhyaSessionId,
+        iscaPositions,
+        iscaMap,
+        lastIscaTimestamps,
+        currentSankhyaUrl
+      );
+    } else {
+      logger.info('Nenhuma posição de ISCA para processar.');
+    }
+
+    // --- 3. Sucesso ---
+    logger.info('Dados (veículos e iscas) salvos no Sankhya com sucesso. Limpando cache.');
     cachedVehiclePositions = null;
 
   } catch (error) {
     logger.error(`Falha na etapa do Sankhya: ${error.message}`);
+    // Se a sessão expirou (TokenError), invalida o ID para forçar novo login na próxima tentativa
     if (error instanceof SankhyaTokenError) {
       sankhyaSessionId = null; 
     }
+    // Lança o erro para ser pego pelo loop principal, que aguardará o 'waitAfterErrorMs'
+    // O cache *não* é limpo, garantindo a retentativa dos dados.
     throw error;
   }
 }
@@ -143,7 +176,7 @@ export async function startApp() {
       if (error instanceof AtualcargoTokenError) {
         logger.warn('Forçando re-login da Atualcargo no próximo ciclo.');
         atualcargoToken = null;
-        atualcargoTokenTimestamp = null; // [MODIFICADO] Limpa o timestamp
+        atualcargoTokenTimestamp = null;
         cachedVehiclePositions = null;
       
       // 2. Erro de Token/Auth do SANKHYA
@@ -166,7 +199,7 @@ export async function startApp() {
         if (error.message.toLowerCase().includes('atualcargo')) {
             logger.warn('Erro de rede ou Rate Limit (425) na Atualcargo. Limpando token e cache.');
             atualcargoToken = null;
-            atualcargoTokenTimestamp = null; // [MODIFICADO] Limpa o timestamp
+            atualcargoTokenTimestamp = null;
             cachedVehiclePositions = null;
         
         } else {

@@ -31,7 +31,6 @@ export const config = {
     username: process.env.ATUALCARGO_USERNAME,
     password: process.env.ATUALCARGO_PASSWORD,
     timeout: Number(process.env.ATUALCARGO_POSITION_TIMEOUT_MS),
-    // [NOVO] Adiciona o tempo de expiração do token (padrão: 5 minutos)
     tokenExpirationMs: Number(process.env.ATUALCARGO_TOKEN_EXPIRATION_MS) || 300000,
   },
   sankhya: {
@@ -39,6 +38,11 @@ export const config = {
     contingencyUrl: process.env.SANKHYA_CONTINGENCY_URL || null,
     username: process.env.SANKHYA_USER,
     password: process.env.SANKHYA_PASSWORD,
+    // [NOVO] Configurações para Iscas
+    isca: {
+      fabricanteId: process.env.SANKHYA_ISCA_FABRICANTE_ID || '2',
+      datasetId: process.env.SANKHYA_ISCA_DATASET_ID || '02S', // Assumindo '02S' (01S é AD_LOCATCAR)
+    }
   },
   cycle: {
     waitAfterLoginMs: Number(process.env.WAIT_AFTER_LOGIN_MS),
