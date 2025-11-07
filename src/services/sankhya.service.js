@@ -204,7 +204,7 @@ export async function savePositionsToSankhya(sessionId, vehiclePositions, vehicl
         const longitude = pos.latlong.longitude.toString();
         const local = pos.proximity || `${pos.address?.street}, ${pos.address?.city}` || 'Endereço não disponível';
         const dataFormatada = formatSankhyaDate(pos.date);
-        const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        const link = `http://googleusercontent.com/maps/google.com/1{latitude},${longitude}`;
         const ignitSankhya = (pos.ignition === 'ON') ? 'S' : 'N';
 
         recordsToSave.push({
@@ -281,7 +281,7 @@ export async function savePositionsToSankhya(sessionId, vehiclePositions, vehicl
 }
 
 // ====================================================================
-// [CORRIGIDO NOVAMENTE] FUNÇÕES DE ISCAS (AD_LOCATISC)
+// [CORREÇÃO FINAL] FUNÇÕES DE ISCAS (AD_LOCATISC)
 // ====================================================================
 
 /**
@@ -292,10 +292,8 @@ export async function savePositionsToSankhya(sessionId, vehiclePositions, vehicl
  */
 export async function getLastIscaTimestamps(sessionId, baseUrl) {
   logger.info('Buscando últimos registros de DATHOR (Iscas) no Sankhya...');
-  // [CORREÇÃO] Trocado "NUMISCA" por "PLACA", assumindo que AD_LOCATISC
-  // usa "PLACA" para armazenar o ID da isca (ex: "ISCA7673"),
-  // assim como AD_LOCATCAR usa "PLACA".
-  const sql = "WITH UltimoRegistro AS (SELECT SEQUENCIA, DATHOR, PLACA, ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY NUMREG DESC) AS RN FROM AD_LOCATISC) SELECT SEQUENCIA, DATHOR, PLACA FROM UltimoRegistro WHERE RN = 1";
+  // [CORREÇÃO] A query SQL agora usa a coluna "ISCA", conforme seu exemplo.
+  const sql = "WITH UltimoRegistro AS (SELECT SEQUENCIA, DATHOR, ISCA, ROW_NUMBER() OVER (PARTITION BY SEQUENCIA ORDER BY NUMREG DESC) AS RN FROM AD_LOCATISC) SELECT SEQUENCIA, DATHOR, ISCA FROM UltimoRegistro WHERE RN = 1";
   const SANKHYA_API_URL = getSankhyaApiUrl(baseUrl);
 
   try {
@@ -328,7 +326,6 @@ export async function getLastIscaTimestamps(sessionId, baseUrl) {
       throw new SankhyaTokenError('Sessão Sankhya expirada (status 3).');
     } else {
       logger.error('Erro ao buscar últimos timestamps (Iscas) no Sankhya:', response.data);
-      // O erro original (ORA-00904: "NUMISCA") foi lançado daqui
       throw new Error(`Falha na query Sankhya (Iscas): ${response.data.statusMessage || 'Erro desconhecido'}`);
     }
 
@@ -352,8 +349,7 @@ export async function getSankhyaIscaSequences(sessionId, iscaPlates, baseUrl) {
   }
   const { fabricanteId } = config.sankhya.isca;
 
-  // O valor em 'iscaPlates' (vindo da API) é o 'NUMISCA'
-  // Esta query está correta e consulta AD_CADISCA
+  // Esta query (AD_CADISCA) usa "NUMISCA" e está correta
   const iscasInClause = iscaPlates.map(p => `'${p}'`).join(',');
   const sql = `SELECT SEQUENCIA, NUMISCA FROM AD_CADISCA WHERE NUMISCA IN (${iscasInClause}) AND FABRICANTE = ${fabricanteId} AND ATIVO = 'S'`;
   const SANKHYA_API_URL = getSankhyaApiUrl(baseUrl);
@@ -375,7 +371,7 @@ export async function getSankhyaIscaSequences(sessionId, iscaPlates, baseUrl) {
       for (const row of response.data.responseBody.rows) {
         const sequencia = row[0];
         const numisca = row[1];
-        iscaMap.set(numisca, sequencia);
+        iscaMap.set(numisca, sequencia); // Mapeia "ISCA7673" -> 91
       }
       logger.info(`Encontradas ${iscaMap.size} iscas correspondentes no Sankhya.`);
       return iscaMap;
@@ -411,7 +407,7 @@ export async function saveIscaPositionsToSankhya(sessionId, iscaPositions, iscaM
   let unmappedCount = 0;
 
   for (const pos of iscaPositions) {
-    const sequencia = iscaMap.get(pos.plate); // pos.plate é o NUMISCA
+    const sequencia = iscaMap.get(pos.plate); // pos.plate é o NUMISCA (ex: "ISCA7673")
 
     if (sequencia) {
       processedCount++;
@@ -429,16 +425,17 @@ export async function saveIscaPositionsToSankhya(sessionId, iscaPositions, iscaM
         const longitude = pos.latlong.longitude.toString();
         const local = pos.proximity || `${pos.address?.street}, ${pos.address?.city}` || 'Endereço não disponível';
         const dataFormatada = formatSankhyaDate(pos.date);
-        const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        const link = `http://googleusercontent.com/maps/google.com/1{latitude},${longitude}`;
 
         recordsToSave.push({
           foreignKey: {
-            SEQUENCIA: sequencia.toString(),
+            SEQUENCIA: sequencia.toString(), // A foreign key é a SEQUENCIA (ex: 91)
           },
           values: {
+            // Os 'values' seguem a ordem dos 'fields' abaixo
             '2': local,
             '3': dataFormatada,
-            '4': pos.plate, // Mapeando para o campo 'PLACA' (índice 4)
+            '4': pos.plate, // O valor de "ISCA" (índice 4) é a própria placa (ex: "ISCA7673")
             '5': latitude,
             '6': longitude,
             '7': pos.speed.toString(),
@@ -469,12 +466,12 @@ export async function saveIscaPositionsToSankhya(sessionId, iscaPositions, iscaM
   const payload = {
     serviceName: 'DatasetSP.save',
     requestBody: {
-      dataSetID: datasetId,
+      dataSetID: datasetId, // Usando o ID do dataset configurado (ex: '02S')
       entityName: 'AD_LOCATISC',
       standAlone: false,
-      // [CORREÇÃO] O 5º campo (índice 4) é 'PLACA', não 'NUMISCA'.
+      // [CORREÇÃO] O 5º campo (índice 4) é 'ISCA', conforme seu exemplo.
       fields: [
-        'NUMREG', 'SEQUENCIA', 'LOCAL', 'DATHOR', 'PLACA',
+        'NUMREG', 'SEQUENCIA', 'LOCAL', 'DATHOR', 'ISCA',
         'LATITUDE', 'LONGITUDE', 'VELOC', 'LINK'
       ],
       records: recordsToSave,
