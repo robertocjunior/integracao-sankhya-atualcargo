@@ -1,15 +1,23 @@
 {
-  "name": "sankhya-atualcargo-integration",
-  "version": "1.0.0",
-  "description": "Serviço de integração entre API Atualcargo e Sankhya",
+  "name": "sankhya-integracao-hub",
+  "version": "2.0.0",
+  "description": "Hub de integração de rastreadores com ERP Sankhya",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "pm2 start ecosystem.config.cjs",
+    "stop": "pm2 stop ecosystem.config.cjs",
+    "logs": "pm2 logs integracao-hub",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
   },
   "dependencies": {
     "axios": "^1.7.2",
+    "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
-    "winston": "^3.13.0"
+    "pm2": "^5.4.2",
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0"
   }
 }

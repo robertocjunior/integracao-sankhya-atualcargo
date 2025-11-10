@@ -1,21 +1,15 @@
 import 'dotenv/config';
 import logger from '../utils/logger.js';
 
+// Validação de variáveis essenciais
 const requiredEnvVars = [
-  'ATUALCARGO_URL',
-  'ATUALCARGO_API_KEY',
-  'ATUALCARGO_USERNAME',
-  'ATUALCARGO_PASSWORD',
   'SANKHYA_URL',
   'SANKHYA_USER',
   'SANKHYA_PASSWORD',
-  'WAIT_AFTER_LOGIN_MS',
-  'WAIT_BETWEEN_CYCLES_MS',
-  'WAIT_AFTER_ERROR_MS',
-  'ATUALCARGO_POSITION_TIMEOUT_MS', 
+  'JOB_RETRY_DELAY_MS',
+  'REQUEST_TIMEOUT_MS',
 ];
 
-// Validação
 for (const varName of requiredEnvVars) {
   if (!process.env[varName]) {
     const errorMsg = `Variável de ambiente obrigatória ${varName} não definida.`;
@@ -24,29 +18,42 @@ for (const varName of requiredEnvVars) {
   }
 }
 
-export const config = {
+// Configurações Globais
+export const appConfig = {
+  logLevel: process.env.LOG_LEVEL || 'info',
+  timeout: Number(process.env.REQUEST_TIMEOUT_MS),
+  jobRetryDelayMs: Number(process.env.JOB_RETRY_DELAY_MS),
+  sankhyaRetryLimit: Number(process.env.SANKHYA_RETRY_LIMIT_BEFORE_SWAP) || 2,
+};
+
+// Configuração do Sankhya
+export const sankhyaConfig = {
+  url: process.env.SANKHYA_URL,
+  contingencyUrl: process.env.SANKHYA_CONTINGENCY_URL || null,
+  username: process.env.SANKHYA_USER,
+  password: process.env.SANKHYA_PASSWORD,
+  iscaDatasetId: process.env.SANKHYA_ISCA_DATASET_ID || '02S',
+};
+
+// Configuração dos Jobs (APIs de Rastreamento)
+export const jobsConfig = {
   atualcargo: {
+    enabled: !!(process.env.ATUALCARGO_URL && process.env.ATUALCARGO_API_KEY),
+    interval: Number(process.env.JOB_INTERVAL_ATUALCARGO) || 300000,
     url: process.env.ATUALCARGO_URL,
     apiKey: process.env.ATUALCARGO_API_KEY,
     username: process.env.ATUALCARGO_USERNAME,
     password: process.env.ATUALCARGO_PASSWORD,
-    timeout: Number(process.env.ATUALCARGO_POSITION_TIMEOUT_MS),
-    tokenExpirationMs: Number(process.env.ATUALCARGO_TOKEN_EXPIRATION_MS) || 300000,
+    tokenExpirationMs: Number(process.env.ATUALCARGO_TOKEN_EXPIRATION_MS) || 270000,
+    fabricanteId: process.env.SANKHYA_ISCA_FABRICANTE_ID_ATUALCARGO || '2',
   },
-  sankhya: {
-    url: process.env.SANKHYA_URL,
-    contingencyUrl: process.env.SANKHYA_CONTINGENCY_URL || null,
-    username: process.env.SANKHYA_USER,
-    password: process.env.SANKHYA_PASSWORD,
-    // [NOVO] Configurações para Iscas
-    isca: {
-      fabricanteId: process.env.SANKHYA_ISCA_FABRICANTE_ID || '2',
-      datasetId: process.env.SANKHYA_ISCA_DATASET_ID || '02S', // Assumindo '02S' (01S é AD_LOCATCAR)
-    }
-  },
-  cycle: {
-    waitAfterLoginMs: Number(process.env.WAIT_AFTER_LOGIN_MS),
-    waitBetweenCyclesMs: Number(process.env.WAIT_BETWEEN_CYCLES_MS),
-    waitAfterErrorMs: Number(process.env.WAIT_AFTER_ERROR_MS),
+  sitrax: {
+    enabled: !!(process.env.SITRAX_URL && process.env.SITRAX_LOGIN),
+    interval: Number(process.env.JOB_INTERVAL_SITRAX) || 300000,
+    url: process.env.SITRAX_URL,
+    login: process.env.SITRAX_LOGIN,
+    cgruChave: process.env.SITRAX_CGRUCHAVE,
+    cusuChave: process.env.SITRAX_CUSUCHAVE,
+    fabricanteId: process.env.SANKHYA_ISCA_FABRICANTE_ID_SITRAX || '3', // Default '3'
   },
 };

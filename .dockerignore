@@ -1,15 +1,12 @@
-# Ignora dependências locais (serão instaladas dentro do container)
+# Exclui dependências locais
 node_modules
 
-# Ignora os logs locais
+# Exclui logs locais
 logs
 
-# Ignora o arquivo de ambiente de desenvolvimento
+# Exclui o arquivo .env local (o Docker Compose fornecerá as variáveis)
 .env
 
-# Ignora arquivos de configuração do Docker que não devem ir para o build
-docker-compose.yml
-Dockerfile
-.dockerignore
+# Exclui arquivos do Git
+.git
 .gitignore
-README.md
