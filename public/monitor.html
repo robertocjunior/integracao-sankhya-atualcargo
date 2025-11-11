@@ -5,30 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hub de Integrações - Status</title>
     <style>
+        /* --- ESTILOS GERAIS (MODO ESCURO) --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            background-color: #0d1117; /* Fundo escuro */
+            color: #c9d1d9; /* Texto claro */
             margin: 0;
             padding: 20px;
         }
         h1 {
             text-align: center;
-            color: #1c3b5f;
+            color: #ffffff; /* Branco */
         }
         .container {
             max-width: 900px;
             margin: 0 auto;
-            background: #fff;
+            background: #161b22; /* Fundo do container escuro */
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             overflow: hidden;
+            border: 1px solid #30363d; /* Borda sutil */
         }
+        
+        /* --- ESTILOS DO JOB --- */
         .job {
             display: flex;
             align-items: center;
             padding: 20px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #30363d; /* Borda escura */
         }
         .job:last-child {
             border-bottom: none;
@@ -50,53 +54,53 @@
         .job-name {
             font-size: 1.5em;
             font-weight: 600;
-            color: #000;
+            color: #58a6ff; /* Azul claro (destaque) */
             margin: 0 0 5px 0;
         }
         .job-message {
             font-size: 1em;
-            color: #555;
+            color: #c9d1d9; /* Texto claro */
             margin: 0;
             word-break: break-word;
         }
         .job-timestamp {
             font-size: 0.8em;
-            color: #888;
+            color: #8b949e; /* Cinza (texto dim) */
             margin-top: 8px;
         }
-        /* NOVO: Estilo do Countdown */
         .job-countdown {
             font-size: 0.9em;
             font-weight: 500;
-            color: #1c3b5f; /* Azul escuro */
+            color: #58a6ff; /* Azul claro */
             margin-top: 8px;
         }
 
-        /* --- Status Colors --- */
+        /* --- CORES DE STATUS (MODO ESCURO) --- */
         .status-idle {
-            background-color: #e0e0e0;
-            color: #757575;
+            background-color: #22272e; /* Cinza escuro */
+            color: #8b949e; /* Cinza dim */
         }
         .status-running {
-            background-color: #d1eaff;
-            color: #0056b3;
-            animation: pulse-blue 2s infinite;
+            background-color: #1c2a3f; /* Azul bem escuro */
+            color: #58a6ff; /* Azul claro */
+            animation: pulse-blue-dark 2s infinite;
         }
         .status-error {
-            background-color: #ffcdd2;
-            color: #c62828;
-            animation: pulse-red 2s infinite;
+            background-color: #3e2224; /* Vermelho bem escuro */
+            color: #f87171; /* Vermelho claro */
+            animation: pulse-red-dark 2s infinite;
         }
 
-        @keyframes pulse-blue {
-            0% { box-shadow: 0 0 0 0 rgba(0, 86, 179, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(0, 86, 179, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 86, 179, 0); }
+        /* --- ANIMAÇÕES (MODO ESCURO) --- */
+        @keyframes pulse-blue-dark {
+            0% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(88, 166, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0); }
         }
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(198, 40, 40, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
+        @keyframes pulse-red-dark {
+            0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
         }
     </style>
 </head>
@@ -120,7 +124,6 @@
             return '✓';
         }
 
-        // NOVO: Função que atualiza os contadores
         function updateCountdowns() {
             const timers = document.querySelectorAll('.job-countdown');
             if (timers.length === 0) return;
@@ -148,7 +151,6 @@
             });
         }
 
-        // Função principal para desenhar o painel
         function renderStatus(jobs) {
             container.innerHTML = ''; 
 
@@ -163,7 +165,6 @@
                 const timestamp = date.toLocaleString('pt-BR');
                 const nextRunTimestamp = job.nextRun ? new Date(job.nextRun).getTime() : 0;
 
-                // Cria o HTML do job
                 const jobHtml = `
                     <div class="job-status-icon status-${job.status}" title="${job.status}">
                         ${getIconForStatus(job.status)}
@@ -187,13 +188,11 @@
                 jobEl.innerHTML = jobHtml;
             }
             
-            // (Re)inicia o timer global
             if (countdownInterval) clearInterval(countdownInterval);
-            updateCountdowns(); // Roda imediatamente
-            countdownInterval = setInterval(updateCountdowns, 1000); // Roda a cada segundo
+            updateCountdowns();
+            countdownInterval = setInterval(updateCountdowns, 1000);
         }
 
-        // Conecta ao servidor
         const socket = io();
 
         fetch('/status')
@@ -210,4 +209,4 @@
         });
     </script>
 </body>
-</html>
+</html> 
