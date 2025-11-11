@@ -5,93 +5,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hub de Integrações - Status</title>
     <style>
-        /* --- ESTILOS GERAIS (MODO ESCURO) --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #0d1117; /* Fundo escuro */
-            color: #c9d1d9; /* Texto claro */
+            background-color: #0d1117;
+            color: #c9d1d9;
             margin: 0;
             padding: 20px;
         }
-        h1 {
-            text-align: center;
-            color: #ffffff; /* Branco */
-        }
+        h1 { text-align: center; color: #ffffff; }
         .container {
             max-width: 900px;
-            margin: 0 auto;
-            background: #161b22; /* Fundo do container escuro */
+            margin: 0 auto 20px auto; /* Adicionado margem inferior */
+            background: #161b22;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             overflow: hidden;
-            border: 1px solid #30363d; /* Borda sutil */
+            border: 1px solid #30363d;
         }
         
         /* --- ESTILOS DO JOB --- */
         .job {
-            display: flex;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 1px solid #30363d; /* Borda escura */
+            display: flex; align-items: center; padding: 20px;
+            border-bottom: 1px solid #30363d;
         }
-        .job:last-child {
-            border-bottom: none;
-        }
+        .job:last-child { border-bottom: none; }
         .job-status-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            margin-right: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
+            width: 50px; height: 50px; border-radius: 50%;
+            margin-right: 20px; display: flex; align-items: center;
+            justify-content: center; font-size: 24px; flex-shrink: 0;
         }
-        .job-details {
-            flex-grow: 1;
-        }
+        .job-details { flex-grow: 1; }
         .job-name {
-            font-size: 1.5em;
-            font-weight: 600;
-            color: #58a6ff; /* Azul claro (destaque) */
+            font-size: 1.5em; font-weight: 600; color: #58a6ff;
             margin: 0 0 5px 0;
         }
-        .job-message {
+        .job-message { font-size: 1em; color: #c9d1d9; margin: 0; word-break: break-word; }
+        .job-timestamp { font-size: 0.8em; color: #8b949e; margin-top: 8px; }
+        .job-countdown { font-size: 0.9em; font-weight: 500; color: #58a6ff; margin-top: 8px; }
+
+        /* --- (NOVO) ESTILOS DA SEÇÃO DE LOGS --- */
+        .logs-container {
+            padding: 20px;
+        }
+        .logs-container h2 {
+            color: #58a6ff;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .log-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .log-input {
+            flex-grow: 1;
+            padding: 10px;
             font-size: 1em;
-            color: #c9d1d9; /* Texto claro */
-            margin: 0;
-            word-break: break-word;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 6px;
         }
-        .job-timestamp {
-            font-size: 0.8em;
-            color: #8b949e; /* Cinza (texto dim) */
-            margin-top: 8px;
+        .log-button {
+            padding: 10px 15px;
+            font-size: 1em;
+            font-weight: 600;
+            background-color: #238636; /* Verde */
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
         }
-        .job-countdown {
-            font-size: 0.9em;
-            font-weight: 500;
-            color: #58a6ff; /* Azul claro */
-            margin-top: 8px;
+        .log-button:hover { background-color: #2ea043; }
+        #log-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #30363d;
+            border-radius: 6px;
         }
-
-        /* --- CORES DE STATUS (MODO ESCURO) --- */
-        .status-idle {
-            background-color: #22272e; /* Cinza escuro */
-            color: #8b949e; /* Cinza dim */
+        .log-item {
+            display: block;
+            padding: 12px 15px;
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            color: #58a6ff;
+            text-decoration: none;
+            font-weight: 600;
         }
-        .status-running {
-            background-color: #1c2a3f; /* Azul bem escuro */
-            color: #58a6ff; /* Azul claro */
-            animation: pulse-blue-dark 2s infinite;
-        }
-        .status-error {
-            background-color: #3e2224; /* Vermelho bem escuro */
+        .log-item:hover { background-color: #30363d; }
+        .log-item:last-child { border-bottom: none; }
+        .log-error {
             color: #f87171; /* Vermelho claro */
-            animation: pulse-red-dark 2s infinite;
+            font-weight: 600;
+            margin-top: 10px;
         }
 
-        /* --- ANIMAÇÕES (MODO ESCURO) --- */
+        /* --- Status Colors --- */
+        .status-idle { background-color: #22272e; color: #8b949e; }
+        .status-running { background-color: #1c2a3f; color: #58a6ff; animation: pulse-blue-dark 2s infinite; }
+        .status-error { background-color: #3e2224; color: #f87171; animation: pulse-red-dark 2s infinite; }
+
+        /* --- Animações --- */
         @keyframes pulse-blue-dark {
             0% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(88, 166, 255, 0); }
@@ -107,9 +122,24 @@
 <body>
 
     <h1>Painel de Monitoramento - Hub de Integração</h1>
+    
     <div id="status-container" class="container">
         <div id="placeholder" class="job">
             Conectando ao servidor...
+        </div>
+    </div>
+    
+    <div id="logs-section" class="container">
+        <div class="logs-container">
+            <h2>Download de Logs</h2>
+            <div class="log-form">
+                <input type="password" id="log-token-input" class="log-input" placeholder="Token de Acesso...">
+                <button id="load-logs-btn" class="log-button">Carregar Logs</button>
+            </div>
+            <div id="log-list-container">
+                <div id="log-list-message" class="log-error" style="display: none;"></div>
+                <div id="log-list"></div>
+            </div>
         </div>
     </div>
 
@@ -127,44 +157,36 @@
         function updateCountdowns() {
             const timers = document.querySelectorAll('.job-countdown');
             if (timers.length === 0) return;
-
             timers.forEach(timerEl => {
                 const nextRun = parseInt(timerEl.dataset.nextRun, 10);
                 if (isNaN(nextRun) || nextRun === 0) {
                     timerEl.innerHTML = '';
                     return;
                 }
-
                 const now = Date.now();
                 const diffMs = nextRun - now;
-
                 if (diffMs <= 0) {
                     timerEl.innerHTML = 'Iniciando novo ciclo...';
                     return;
                 }
-
                 const totalSeconds = Math.floor(diffMs / 1000);
                 const minutes = Math.floor(totalSeconds / 60);
                 const seconds = totalSeconds % 60;
-
                 timerEl.innerHTML = `Próximo ciclo em: ${minutes}m ${seconds.toString().padStart(2, '0')}s`;
             });
         }
 
         function renderStatus(jobs) {
             container.innerHTML = ''; 
-
             if (Object.keys(jobs).length === 0) {
                  container.innerHTML = '<div class="job">Aguardando o primeiro status...</div>';
                  return;
             }
-
             for (const jobName in jobs) {
                 const job = jobs[jobName];
                 const date = new Date(job.lastUpdate);
                 const timestamp = date.toLocaleString('pt-BR');
                 const nextRunTimestamp = job.nextRun ? new Date(job.nextRun).getTime() : 0;
-
                 const jobHtml = `
                     <div class="job-status-icon status-${job.status}" title="${job.status}">
                         ${getIconForStatus(job.status)}
@@ -176,7 +198,6 @@
                         <div class="job-timestamp">Última Atualização: ${timestamp}</div>
                     </div>
                 `;
-                
                 let jobEl = document.getElementById(`job-${jobName}`);
                 if (!jobEl) {
                     jobEl = document.createElement('div');
@@ -184,29 +205,70 @@
                     jobEl.className = 'job';
                     container.appendChild(jobEl);
                 }
-                
                 jobEl.innerHTML = jobHtml;
             }
-            
             if (countdownInterval) clearInterval(countdownInterval);
             updateCountdowns();
             countdownInterval = setInterval(updateCountdowns, 1000);
         }
 
+        // --- Conexão Socket.io ---
         const socket = io();
-
         fetch('/status')
             .then(res => res.json())
-            .then(initialStatus => {
-                renderStatus(initialStatus);
-            })
-            .catch(err => {
-                container.innerHTML = '<div class="job">Erro ao conectar ao servidor.</div>';
-            });
+            .then(initialStatus => renderStatus(initialStatus))
+            .catch(err => container.innerHTML = '<div class="job">Erro ao conectar ao servidor.</div>');
+        socket.on('status-update', (jobs) => renderStatus(jobs));
 
-        socket.on('status-update', (jobs) => {
-            renderStatus(jobs);
+        // --- (NOVO) Lógica de Download de Logs ---
+        const tokenInput = document.getElementById('log-token-input');
+        const loadLogsBtn = document.getElementById('load-logs-btn');
+        const logListDiv = document.getElementById('log-list');
+        const logMessageDiv = document.getElementById('log-list-message');
+
+        loadLogsBtn.addEventListener('click', async () => {
+            const token = tokenInput.value;
+            if (!token) {
+                logMessageDiv.textContent = 'Por favor, insira o token de acesso.';
+                logMessageDiv.style.display = 'block';
+                return;
+            }
+            
+            logMessageDiv.style.display = 'none';
+            logListDiv.innerHTML = '<div class="log-item">Carregando...</div>';
+
+            try {
+                const response = await fetch(`/api/logs?token=${token}`);
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Erro ao carregar logs.');
+                }
+                
+                const logFiles = await response.json();
+                logListDiv.innerHTML = ''; // Limpa o 'Carregando...'
+
+                if (logFiles.length === 0) {
+                    logListDiv.innerHTML = '<div class="log-item">Nenhum arquivo de log encontrado.</div>';
+                    return;
+                }
+
+                logFiles.forEach(filename => {
+                    const link = document.createElement('a');
+                    link.className = 'log-item';
+                    // Adiciona o token à URL de download
+                    link.href = `/api/download/${filename}?token=${token}`;
+                    link.textContent = filename;
+                    // link.target = '_blank'; // Opcional: abre em nova aba
+                    logListDiv.appendChild(link);
+                });
+
+            } catch (error) {
+                logListDiv.innerHTML = '';
+                logMessageDiv.textContent = `Erro: ${error.message}`;
+                logMessageDiv.style.display = 'block';
+            }
         });
+
     </script>
 </body>
-</html> 
+</html>

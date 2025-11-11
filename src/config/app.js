@@ -14,4 +14,7 @@ export const appConfig = {
 
   // Porta do painel web de monitoramento
   monitorPort: parseInt(process.env.MONITOR_PORT, 10) || 9222,
+
+  // Lê a chave secreta do ambiente
+  logToken: process.env.LOG_DOWNLOAD_TOKEN,
 };
