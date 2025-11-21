@@ -4,6 +4,9 @@ import { parse, isAfter, format, isValid } from 'date-fns';
 // Formato Atualcargo: 2025-11-07 15:38:12
 const ATUALCARGO_FORMAT = 'yyyy-MM-dd HH:mm:ss';
 
+// Formato Positron: 2025-02-03T14:00:49 (ISO-like sem timezone)
+const POSITRON_FORMAT = "yyyy-MM-dd'T'HH:mm:ss"; // NOVO
+
 // Formato Sankhya (consulta): 07112025 13:58:42
 const SANKHYA_QUERY_FORMAT = 'ddMMyyyy HH:mm:ss';
 
@@ -17,6 +20,18 @@ export const parseAtualcargoDate = (dateString) => {
   const date = parse(dateString, ATUALCARGO_FORMAT, new Date());
   if (!isValid(date)) {
     logger.warn(`Data (Atualcargo) inválida: ${dateString}.`);
+    return null;
+  }
+  return date;
+};
+
+/**
+ * Converte uma string de data da Positron para um objeto Date. // NOVO
+ */
+export const parsePositronDate = (dateString) => {
+  const date = parse(dateString, POSITRON_FORMAT, new Date());
+  if (!isValid(date)) {
+    logger.warn(`Data (Positron) inválida: ${dateString}.`);
     return null;
   }
   return date;

@@ -1,4 +1,4 @@
-import { parseAtualcargoDate, parseSitraxDate } from '../utils/dateTime.js'; // CAMINHO CORRIGIDO
+import { parseAtualcargoDate, parseSitraxDate, parsePositronDate } from '../utils/dateTime.js'; // CAMINHO CORRIGIDO E ATUALIZADO
 import logger from '../utils/logger.js'; // CAMINHO CORRIGIDO
 
 /**
@@ -30,6 +30,39 @@ export function mapAtualcargoToStandard(positions) {
   }
   
   logger.info(`[AtualcargoMapper] Mapeadas ${standardPositions.length} posições.`);
+  return standardPositions;
+}
+
+/**
+ * Mapeia os dados da Positron para o formato padrão do hub. // NOVO
+ */
+export function mapPositronToStandard(positions) {
+  const standardPositions = [];
+  
+  for (const pos of positions) {
+    // Positron usa 'moduleDatetime' e é no formato ISO (2025-02-03T14:00:49)
+    const date = parsePositronDate(pos.moduleDatetime); 
+    
+    // Validação
+    if (!pos.licensePlate || !date || pos.latitude === undefined || pos.longitude === undefined) {
+      logger.warn(`[PositronMapper] Registro ignorado (dados/data inválida): ${pos.licensePlate}`);
+      continue;
+    }
+
+    standardPositions.push({
+      type: 'vehicle', // Positron rastreia veículos
+      identifier: pos.licensePlate, // Placa é o identificador
+      insertValue: pos.licensePlate, // Placa é o valor para inserir (PLACA)
+      date: date,
+      lat: pos.latitude,
+      lon: pos.longitude,
+      speed: pos.speed || 0, // Garante que a velocidade existe
+      ignition: pos.ignition === true ? 'S' : 'N', // Converte boolean para 'S'/'N'
+      location: pos.relationalAddress || 'Localização não informada', // Usa relationalAddress
+    });
+  }
+  
+  logger.info(`[PositronMapper] Mapeadas ${standardPositions.length} posições.`);
   return standardPositions;
 }
 
