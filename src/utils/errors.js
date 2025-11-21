@@ -27,13 +27,3 @@ export class SankhyaTokenError extends TokenError {
     this.name = 'SankhyaTokenError';
   }
 }
-
-/**
- * Erro específico para a API Positron
- */
-export class PositronTokenError extends TokenError {
-  constructor(message) {
-    super(message);
-    this.name = 'PositronTokenError';
-  }
-}

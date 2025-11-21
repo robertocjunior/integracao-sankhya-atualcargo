@@ -63,14 +63,4 @@ export const jobsConfig = {
     cusuChave: process.env.SITRAX_CUSUCHAVE,
     fabricanteId: process.env.SANKHYA_ISCA_FABRICANTE_ID_SITRAX || '3',
   },
-  // NOVO: Positron
-  positron: {
-    enabled: !!(process.env.POSITRON_URL && process.env.POSITRON_LOGIN && process.env.POSITRON_PASSWORD),
-    interval: getInterval('JOB_INTERVAL_POSITRON', 300000), // 5 min
-    url: process.env.POSITRON_URL,
-    login: process.env.POSITRON_LOGIN,
-    password: process.env.POSITRON_PASSWORD,
-    tokenExpirationMs: getInterval('POSITRON_TOKEN_EXPIRATION_MS', 82800000), // 23h
-    fabricanteId: process.env.SANKHYA_ISCA_FABRICANTE_ID_POSITRON || '1',
-  },
 };

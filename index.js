@@ -13,7 +13,6 @@ import statusManager from './src/utils/statusManager.js';
 // Jobs
 import * as atualcargoJob from './src/jobs/atualcargo.job.js';
 import * as sitraxJob from './src/jobs/sitrax.job.js';
-import * as positronJob from './src/jobs/positron.job.js'; // NOVO: Importa o job Positron
 
 // --- Workaround para __dirname em ES Modules ---
 const __filename = fileURLToPath(import.meta.url);
@@ -105,8 +104,5 @@ httpServer.listen(appConfig.monitorPort, () => {
   }
   if (jobsConfig.sitrax.enabled) {
     createJobLoop('Sitrax', sitraxJob.run, jobsConfig.sitrax.interval);
-  }
-  if (jobsConfig.positron.enabled) {
-    createJobLoop('Positron', positronJob.run, jobsConfig.positron.interval);
   }
 });

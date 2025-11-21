@@ -8,7 +8,6 @@ import {
   parseSankhyaQueryDate 
 } from '../utils/dateTime.js';
 import { TextDecoder } from 'util';
-import { executeInSankhyaLock } from '../utils/sankhya.lock.js'; // NOVO: Importa o sistema de Lock
 
 const logger = createLogger('SankhyaAPI');
 
@@ -50,9 +49,6 @@ async function performLogin(baseUrl) {
       },
     };
     
-    // O login não usa o lock, pois se dois jobs chegarem juntos,
-    // eles devem tentar fazer o login para obter a sessão. O lock
-    // é aplicado à requisição principal (makeRequest).
     const response = await axios.post(
       '/service.sbr?serviceName=MobileLoginSP.login&outputType=json',
       loginBody,
@@ -93,60 +89,52 @@ async function login(baseUrl) {
   return loginPromise;
 }
 
-// *** AQUI É ONDE O LOCK É IMPLEMENTADO ***
 async function makeRequest(serviceName, requestBody, baseUrl) {
-  
-  // Função de trabalho que será executada dentro do lock
-  const workerFunction = async () => {
-    if (!jsessionid) {
-        await login(baseUrl);
-    }
+  if (!jsessionid) {
+      await login(baseUrl);
+  }
 
-    const url = `/service.sbr?serviceName=${serviceName}&outputType=json`;
-    const body = { serviceName, requestBody };
-    const headers = {
-      'Cookie': `JSESSIONID=${jsessionid}`,
-    };
-
-    try {
-      const response = await apiClient.post(url, body, { headers });
-      
-      if (response.data.status === '1') {
-        return response.data.responseBody;
-      }
-      
-      if (response.data.status === '3' && response.data.statusMessage === 'Não autorizado.') {
-        logger.warn('[Sankhya] JSessionID expirado ou inválido (Não autorizado). Reautenticando...');
-        jsessionid = null;
-        await login(baseUrl); 
-        
-        const newHeaders = { Cookie: `JSESSIONID=${jsessionid}` };
-        const retryResponse = await apiClient.post(url, body, { headers: newHeaders });
-
-        if (retryResponse.data.status === '1') {
-          return retryResponse.data.responseBody;
-        }
-        throw new Error(`Falha na requisição Sankhya (${serviceName}) após re-autenticar: ${retryResponse.data.statusMessage}`);
-      }
-      
-      throw new Error(`Erro na requisição Sankhya (${serviceName}): ${response.data.statusMessage || 'Erro desconhecido'}`);
-
-    } catch (error) {
-      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.response?.status === 504) {
-        logger.error('[Sankhya] Timeout na requisição.');
-        throw new Error(`Timeout da API Sankhya: ${serviceName}`);
-      }
-      logger.error(`[Sankhya] Falha na chamada de serviço (${serviceName}): ${error.message}`);
-      if (error instanceof SankhyaTokenError) throw error;
-      if (error.message.includes('connect') || error.message.includes('Timeout')) {
-          jsessionid = null;
-      }
-      throw error;
-    }
+  const url = `/service.sbr?serviceName=${serviceName}&outputType=json`;
+  const body = { serviceName, requestBody };
+  const headers = {
+    'Cookie': `JSESSIONID=${jsessionid}`,
   };
-  
-  // Executa a requisição dentro do lock, serializando todas as chamadas Sankhya.
-  return executeInSankhyaLock(workerFunction);
+
+  try {
+    const response = await apiClient.post(url, body, { headers });
+    
+    if (response.data.status === '1') {
+      return response.data.responseBody;
+    }
+    
+    if (response.data.status === '3' && response.data.statusMessage === 'Não autorizado.') {
+      logger.warn('[Sankhya] JSessionID expirado ou inválido (Não autorizado). Reautenticando...');
+      jsessionid = null;
+      await login(baseUrl); 
+      
+      const newHeaders = { Cookie: `JSESSIONID=${jsessionid}` };
+      const retryResponse = await apiClient.post(url, body, { headers: newHeaders });
+
+      if (retryResponse.data.status === '1') {
+        return retryResponse.data.responseBody;
+      }
+      throw new Error(`Falha na requisição Sankhya (${serviceName}) após re-autenticar: ${retryResponse.data.statusMessage}`);
+    }
+    
+    throw new Error(`Erro na requisição Sankhya (${serviceName}): ${response.data.statusMessage || 'Erro desconhecido'}`);
+
+  } catch (error) {
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.response?.status === 504) {
+      logger.error('[Sankhya] Timeout na requisição.');
+      throw new Error(`Timeout da API Sankhya: ${serviceName}`);
+    }
+    logger.error(`[Sankhya] Falha na chamada de serviço (${serviceName}): ${error.message}`);
+    if (error instanceof SankhyaTokenError) throw error;
+    if (error.message.includes('connect') || error.message.includes('Timeout')) {
+        jsessionid = null;
+    }
+    throw error;
+  }
 }
 
 function formatQueryResponse(responseBody) {
