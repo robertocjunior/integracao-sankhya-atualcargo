@@ -154,9 +154,7 @@ export async function makeRequest(serviceName, requestBody, baseUrl) {
                 throw error; 
             }
         }).catch(() => {}); // Captura rejections na cadeia de fila para permitir que o próximo item comece
-
-        // Retorna a Promise que será resolvida/rejeitada pela fila
-        return result;
+        // CORREÇÃO: A linha 'return result;' que causava o erro foi removida daqui.
     });
 
     return result;

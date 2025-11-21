@@ -1,18 +1,17 @@
 import pkg from 'lodash';
-import { parseAtualcargoDate, parseSitraxDate, parseISODate } from './dateTime.js'; // Inclui parseISODate
+import { parseAtualcargoDate, parseSitraxDate, parseISODate } from './dateTime.js'; 
 
-const { get } = pkg; // Importação correta para ES Modules
+const { get } = pkg; 
 
 const dateParsers = {
   parseAtualcargoDate: parseAtualcargoDate,
   parseSitraxDate: parseSitraxDate,
-  parseISODate: parseISODate, // Registra o novo parser ISO
+  parseISODate: parseISODate, 
 };
 
 const transformRules = {
   ON_to_S_OFF_to_N: (value) => (value === 'ON' ? 'S' : 'N'),
   S_to_S_N_to_N: (value) => (value === 'S' ? 'S' : 'N'),
-  // NOVO: Regra para converter booleano para S/N (true/false)
   Boolean_to_S_N: (value) => (value === true || String(value).toLowerCase() === 'true' ? 'S' : 'N'), 
 };
 
@@ -28,7 +27,8 @@ export function transformValue(ruleName, value) {
   return value;
 }
 
-export function parseDate(dateString, parserName) {
+// CORREÇÃO: Renomeado parseDate para execDateParser
+export function execDateParser(dateString, parserName) {
     const parser = dateParsers[parserName];
     if (!parser) {
         return null;

@@ -2,7 +2,7 @@ import { createLogger } from '../utils/logger.js';
 import { 
     getValue, 
     transformValue, 
-    parseDate, 
+    execDateParser, // CORREÇÃO: Importa o novo nome da função
     formatLocation 
 } from '../utils/mapper.utils.js';
 
@@ -14,7 +14,7 @@ export function mapToStandard(positions, mapperConfig, jobName) {
   
   for (const pos of positions) {
     const rawDate = getValue(pos, date.sourceField);
-    const dateObj = parseDate(rawDate, date.parser);
+    const dateObj = execDateParser(rawDate, date.parser); // CORREÇÃO: Chama a função com o novo nome
     const rawIdentifier = getValue(pos, identifier);
     
     // 1. Validação essencial

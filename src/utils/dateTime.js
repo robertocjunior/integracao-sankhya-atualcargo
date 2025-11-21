@@ -1,5 +1,5 @@
 import logger from './logger.js';
-import { parse, isAfter, format, isValid, parseISO } from 'date-fns';
+import { parse as dateFnsParse, isAfter, format, isValid, parseISO } from 'date-fns'; // CORREÇÃO: Usando 'dateFnsParse'
 
 // Formato Atualcargo: 2025-11-07 15:38:12
 const ATUALCARGO_FORMAT = 'yyyy-MM-dd HH:mm:ss';
@@ -14,7 +14,7 @@ const DDMMYYYY_HHMMSS_FORMAT = 'dd/MM/yyyy HH:mm:ss';
  * Converte uma string de data da Atualcargo para um objeto Date.
  */
 export const parseAtualcargoDate = (dateString) => {
-  const date = parse(dateString, ATUALCARGO_FORMAT, new Date());
+  const date = dateFnsParse(dateString, ATUALCARGO_FORMAT, new Date());
   if (!isValid(date)) {
     logger.warn(`Data (Atualcargo) inválida: ${dateString}.`);
     return null;
@@ -26,7 +26,7 @@ export const parseAtualcargoDate = (dateString) => {
  * Converte uma string de data do DB Sankhya (consulta) para um objeto Date.
  */
 export const parseSankhyaQueryDate = (dateString) => {
-  const date = parse(dateString, SANKHYA_QUERY_FORMAT, new Date());
+  const date = dateFnsParse(dateString, SANKHYA_QUERY_FORMAT, new Date());
   if (!isValid(date)) {
     logger.warn(`Data (Sankhya Query) inválida: ${dateString}.`);
     return null;
@@ -39,7 +39,7 @@ export const parseSankhyaQueryDate = (dateString) => {
  * Usado pelo Sitrax e pelo insert do Sankhya.
  */
 export const parseSitraxDate = (dateString) => {
-  const date = parse(dateString, DDMMYYYY_HHMMSS_FORMAT, new Date());
+  const date = dateFnsParse(dateString, DDMMYYYY_HHMMSS_FORMAT, new Date());
   if (!isValid(date)) {
     logger.warn(`Data (Sitrax) inválida: ${dateString}.`);
     return null;
