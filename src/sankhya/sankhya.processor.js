@@ -28,17 +28,21 @@ export async function processPositions(standardPositions, sourceName, sankhyaUrl
   const vehiclePlates = vehicles.map((v) => v.identifier);
   const iscaNumbers = iscas.map((i) => i.identifier);
 
-  const [
-    vehicleMappingResult,
-    iscaMappingResult,
-    vehicleHistoryResult,
-    iscaHistoryResult,
-  ] = await Promise.all([
-    sankhyaApi.getVehiclesByPlate(vehiclePlates, sankhyaUrl),
-    sankhyaApi.getIscasByNum(iscaNumbers, iscaFabricanteId, sankhyaUrl),
-    sankhyaApi.getLastVehicleHistory(sankhyaUrl),
-    sankhyaApi.getLastIscaHistory(sankhyaUrl),
-  ]);
+  // CORREÇÃO CRÍTICA DE CONCORRÊNCIA:
+  // A API Sankhya rejeita múltiplas requisições DbExplorerSP.executeQuery simultâneas 
+  // usando o mesmo JSessionID. Mudamos para chamadas sequenciais (await).
+  
+  // Chamada 1: Mapeamento de Veículos
+  const vehicleMappingResult = await sankhyaApi.getVehiclesByPlate(vehiclePlates, sankhyaUrl);
+
+  // Chamada 2: Mapeamento de Iscas
+  const iscaMappingResult = await sankhyaApi.getIscasByNum(iscaNumbers, iscaFabricanteId, sankhyaUrl);
+  
+  // Chamada 3: Último Histórico de Veículos
+  const vehicleHistoryResult = await sankhyaApi.getLastVehicleHistory(sankhyaUrl);
+  
+  // Chamada 4: Último Histórico de Iscas
+  const iscaHistoryResult = await sankhyaApi.getLastIscaHistory(sankhyaUrl);
 
   const vehicleMap = new Map(vehicleMappingResult.map((v) => [v.PLACA, v.CODVEICULO]));
   const iscaMap = new Map(iscaMappingResult.map((i) => [i.NUMISCA, i.SEQUENCIA]));
@@ -70,9 +74,7 @@ export async function processPositions(standardPositions, sourceName, sankhyaUrl
       continue;
     }
     
-    // ***** ESTA É A CORREÇÃO *****
-    // Estava: lastIscaHistory.get(isca.identifier)
-    // Corrigido: lastIscaHistory.get(sequencia)
+    // ***** ESTA É A CORREÇÃO (Já existente, mas mantida) *****
     const lastDathor = lastIscaHistory.get(sequencia);
     
     if (isNewer(isca.date, lastDathor)) {
@@ -82,12 +84,12 @@ export async function processPositions(standardPositions, sourceName, sankhyaUrl
   
   logger.info(`[${sourceName}] ${newVehicleRecords.length} novos veículos e ${newIscaRecords.length} novas iscas para inserir.`);
 
-  // 5. Inserir no Sankhya
+  // 5. Inserir no Sankhya (A inserção em lote pode ser paralela, mas mantemos sequencial para maior segurança)
   logger.info(`[${sourceName}] Iniciando inserção de dados no Sankhya...`);
-  await Promise.all([
-    sankhyaApi.insertVehicleHistory(newVehicleRecords, sankhyaUrl),
-    sankhyaApi.insertIscaHistory(newIscaRecords, sankhyaUrl),
-  ]);
+  
+  // Inserção sequencial
+  await sankhyaApi.insertVehicleHistory(newVehicleRecords, sankhyaUrl);
+  await sankhyaApi.insertIscaHistory(newIscaRecords, sankhyaUrl);
 
   logger.info(`[${sourceName}] Processamento Sankhya concluído com sucesso.`);
 }

@@ -4,6 +4,9 @@ import { parse, isAfter, format, isValid } from 'date-fns';
 // Formato Atualcargo: 2025-11-07 15:38:12
 const ATUALCARGO_FORMAT = 'yyyy-MM-dd HH:mm:ss';
 
+// Formato Positron: 2025-02-03T14:00:49
+const POSITRON_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
+
 // Formato Sankhya (consulta): 07112025 13:58:42
 const SANKHYA_QUERY_FORMAT = 'ddMMyyyy HH:mm:ss';
 
@@ -46,6 +49,19 @@ export const parseSitraxDate = (dateString) => {
   }
   return date;
 }
+
+/**
+ * Converte uma string de data da Positron (ISO sem timezone) para um objeto Date.
+ */
+export const parsePositronDate = (dateString) => {
+  // O parse com o formato específico interpreta a string como horário local, evitando problemas com timezone.
+  const date = parse(dateString, POSITRON_FORMAT, new Date()); 
+  if (!isValid(date)) {
+    logger.warn(`Data (Positron) inválida: ${dateString}.`);
+    return null;
+  }
+  return date;
+};
 
 /**
  * Formata um objeto Date para o padrão de inserção do Sankhya (DD/MM/YYYY HH:mm:ss).

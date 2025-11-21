@@ -1,4 +1,4 @@
-import { parseAtualcargoDate, parseSitraxDate } from '../utils/dateTime.js'; // CAMINHO CORRIGIDO
+import { parseAtualcargoDate, parseSitraxDate, parsePositronDate } from '../utils/dateTime.js'; // CAMINHO CORRIGIDO e NOVO IMPORT
 import logger from '../utils/logger.js'; // CAMINHO CORRIGIDO
 
 /**
@@ -67,5 +67,51 @@ export function mapSitraxToStandard(positions) {
   }
   
   logger.info(`[SitraxMapper] Mapeadas ${standardPositions.length} posições.`);
+  return standardPositions;
+}
+
+
+/**
+ * Mapeia os dados da Positron para o formato padrão do hub (apenas iscas).
+ * Mapeamento:
+ * - type: 'isca'
+ * - identifier: pos.pin (NUMISCA para busca)
+ * - insertValue: pos.licensePlate (ISCA para inserção)
+ * - date: pos.moduleDatetime
+ * - lat: pos.latitude
+ * - lon: pos.longitude
+ * - speed: pos.speed
+ * - ignition: pos.ignition (boolean para 'S'/'N')
+ * - location: pos.relationalAddress
+ */
+export function mapPositronToStandard(positions) {
+  const standardPositions = [];
+
+  for (const pos of positions) {
+    const date = parsePositronDate(pos.moduleDatetime);
+    
+    // Validação: usa o 'pin' (NUMISCA) como identificador principal da isca
+    if (!pos.pin || !date || pos.latitude === undefined || pos.longitude === undefined) {
+      logger.warn(`[PositronMapper] Registro ignorado (dados/data inválida): ${pos.licensePlate || 'N/A'}`);
+      continue;
+    }
+    
+    // Converte ignition de boolean para 'S'/'N'
+    const ignitionStatus = pos.ignition === true ? 'S' : 'N';
+
+    standardPositions.push({
+      type: 'isca', // Positron Job trata apenas iscas
+      identifier: pos.pin.toString(), // pin é o NUMISCA para busca
+      insertValue: pos.licensePlate.toString(), // licensePlate é o valor para inserir (campo ISCA)
+      date: date,
+      lat: pos.latitude,
+      lon: pos.longitude,
+      speed: pos.speed,
+      ignition: ignitionStatus,
+      location: pos.relationalAddress || 'Localização não informada',
+    });
+  }
+  
+  logger.info(`[PositronMapper] Mapeadas ${standardPositions.length} posições.`);
   return standardPositions;
 }
