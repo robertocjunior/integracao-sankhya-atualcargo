@@ -5,9 +5,11 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "pm2 start ecosystem.config.cjs",
+    "start": "pm2 start ecosystem.config.cjs && pm2 logs integracao-hub",
     "stop": "pm2 stop ecosystem.config.cjs",
     "logs": "pm2 logs integracao-hub",
+    "delete": "pm2 delete integracao-hub && pm2 flush",
+    "flush":"pm2 flush",
     "docker:up": "docker-compose up -d --build",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f"
@@ -17,6 +19,8 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
+    "js-yaml": "^4.1.1",
+    "lodash": "^4.17.21",
     "pm2": "^5.4.2",
     "socket.io": "^4.8.1",
     "winston": "^3.13.0",

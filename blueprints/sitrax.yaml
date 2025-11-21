@@ -1,0 +1,45 @@
+# Blueprint de integração Sitrax
+name: Sitrax
+enabled: true
+
+# Configurações do Job (intervalo e ID do fabricante)
+jobConfig:
+  intervalMs: ${JOB_INTERVAL_SITRAX:300000} 
+  fabricanteId: ${SANKHYA_ISCA_FABRICANTE_ID_SITRAX:3}
+  tokenExpirationMs: 0 
+
+# Etapa 1: Extract (Conector)
+connector:
+  type: SITRAX
+  baseUrl: ${SITRAX_URL}
+  positionsUrl: /ultimaposicao
+  positionsPath: posicoes 
+  customBody:
+    login: ${SITRAX_LOGIN}
+    cgruChave: ${SITRAX_CGRUCHAVE}
+    cusuChave: ${SITRAX_CUSUCHAVE}
+    pktId: 0
+
+# Etapa 2: Transform (Mapeamento para o Standard Data Model)
+mapper:
+  type: isca 
+  identifier: cveiPlaca 
+  insertValue: cequSN 
+  
+  # Mapeamento de data/hora
+  date: 
+    sourceField: llpoDataStatus
+    parser: parseSitraxDate 
+
+  fields:
+    lat: llpoLatitude
+    lon: llpoLongitude
+    speed: llpoVelocidade
+    # Lógica de transformação para Ignição
+    ignition:
+      sourceField: llpoIgn
+      transformRule: S_to_S_N_to_N 
+    # Lógica de concatenação para Localização
+    location: 
+      sourceFields: [truaNome, tmunNome, testAbrev]
+      template: "${0}, ${1} - ${2}"

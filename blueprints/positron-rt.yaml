@@ -1,0 +1,67 @@
+# Blueprint: Positron RT
+name: Positron RT
+enabled: true
+
+# Configurações do Job (Lidas do .env)
+jobConfig:
+  # Intervalo de 5 minutos (300000 ms)
+  intervalMs: ${JOB_INTERVAL_POSITRON:300000} 
+  # ID do Fabricante Sankhya (conforme especificado)
+  fabricanteId: '1'
+  # Expiração do Token (4.5 minutos padrão)
+  tokenExpirationMs: ${POSITRON_TOKEN_EXPIRATION_MS:270000} 
+
+# ---------------------------------------------------
+# Etapa 1: Connector (Extração API)
+# ---------------------------------------------------
+connector:
+  # O tipo POSITRON_TOKEN usa 'login' no corpo e omite 'access-key'
+  type: POSITRON_TOKEN
+  # Assumindo que POSITRON_URL é 'https://webservices.positronrt.com.br/srb-external-ws'
+  baseUrl: ${POSITRON_URL}/api/v1
+  
+  # Endpoints
+  loginUrl: /auth/token
+  positionsUrl: /position/latest?withAddress=true
+  
+  # O campo 'positionsPath' vazio indica que a resposta é um array no nível raiz
+  positionsPath: "" 
+  
+  # Variáveis de Credenciais (lidas do .env)
+  # O 'username' mapeia internamente para 'login' no corpo da requisição POST
+  username: ${POSITRON_LOGIN}
+  password: ${POSITRON_PASSWORD}
+
+  # Essencial para requisições GET com o token
+  omitContentTypeHeader: true 
+
+# ---------------------------------------------------
+# Etapa 2: Mapper (Mapeamento de Dados)
+# ---------------------------------------------------
+mapper:
+  type: dynamic 
+  typeField: licensePlate
+  typeRules:
+    startsWith: 
+      ISCA: isca
+      default: vehicle
+  
+  identifier: licensePlate 
+  insertValue: licensePlate 
+  
+  date: 
+    sourceField: moduleDatetime 
+    # REQUER A FUNÇÃO parseISODate
+    parser: parseISODate 
+
+  fields:
+    lat: latitude
+    lon: longitude
+    speed: speed
+    ignition:
+      sourceField: ignition
+      # REQUER A REGRA Boolean_to_S_N (true/false para S/N)
+      transformRule: Boolean_to_S_N 
+    location: 
+      sourceFields: ['relationalAddress']
+      template: "${0}"

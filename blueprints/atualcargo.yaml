@@ -1,0 +1,51 @@
+# Blueprint de integração Atualcargo
+name: Atualcargo
+enabled: true
+
+# Configurações do Job (intervalo e ID do fabricante)
+jobConfig:
+  intervalMs: ${JOB_INTERVAL_ATUALCARGO:300000} 
+  fabricanteId: ${SANKHYA_ISCA_FABRICANTE_ID_ATUALCARGO:2}
+  tokenExpirationMs: ${ATUALCARGO_TOKEN_EXPIRATION_MS:270000} 
+
+# Etapa 1: Extract (Conector)
+connector:
+  type: ATUALCARGO
+  baseUrl: ${ATUALCARGO_URL}
+  loginUrl: /api/auth/v1/login
+  positionsUrl: /api/positions/v1/last
+  apiKey: ${ATUALCARGO_API_KEY}
+  username: ${ATUALCARGO_USERNAME}
+  password: ${ATUALCARGO_PASSWORD}
+  positionsPath: data
+  omitContentTypeHeader: true
+
+# Etapa 2: Transform (Mapeamento para o Standard Data Model)
+mapper:
+  type: dynamic 
+  typeField: plate 
+  typeRules:
+    startsWith: 
+      ISCA: isca
+      default: vehicle
+  
+  identifier: plate 
+  insertValue: plate 
+  
+  # Mapeamento de data/hora
+  date: 
+    sourceField: date
+    parser: parseAtualcargoDate 
+
+  fields:
+    lat: latlong.latitude
+    lon: latlong.longitude
+    speed: speed
+    # Lógica de transformação para Ignição
+    ignition:
+      sourceField: ignition
+      transformRule: ON_to_S_OFF_to_N 
+    # Lógica de concatenação para Localização
+    location: 
+      sourceFields: [proximity, address.street]
+      template: "${0} | ${1} | Localização não informada"

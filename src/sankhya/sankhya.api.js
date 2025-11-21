@@ -31,9 +31,10 @@ function createApiClient(baseUrl) {
   });
 }
 
-// --- Gerenciamento de Sessão ---
+// --- Gerenciamento de Sessão e FILA DE REQUISIÇÕES ---
 let jsessionid = null;
 let loginPromise = null;
+let requestQueue = Promise.resolve(); // Fila para serialização
 
 async function performLogin(baseUrl) {
   logger.info(`[Sankhya] Autenticando (iniciando nova sessão) em ${baseUrl}...`);
@@ -89,7 +90,8 @@ async function login(baseUrl) {
   return loginPromise;
 }
 
-async function makeRequest(serviceName, requestBody, baseUrl) {
+// FUNÇÃO DE EXECUÇÃO REAL (Lógica original de requisição)
+async function _makeRequestExecution(serviceName, requestBody, baseUrl) {
   if (!jsessionid) {
       await login(baseUrl);
   }
@@ -135,6 +137,29 @@ async function makeRequest(serviceName, requestBody, baseUrl) {
     }
     throw error;
   }
+}
+
+// FUNÇÃO WRAPPER EXPORTADA: Garante a execução sequencial
+export async function makeRequest(serviceName, requestBody, baseUrl) {
+    const result = new Promise((resolve, reject) => {
+        // Enfileira a nova requisição
+        requestQueue = requestQueue.then(async () => {
+            try {
+                // Executa a requisição real
+                const response = await _makeRequestExecution(serviceName, requestBody, baseUrl);
+                resolve(response);
+            } catch (error) {
+                // Rejeita a Promise externa, mas propaga o erro para o log
+                reject(error);
+                throw error; 
+            }
+        }).catch(() => {}); // Captura rejections na cadeia de fila para permitir que o próximo item comece
+
+        // Retorna a Promise que será resolvida/rejeitada pela fila
+        return result;
+    });
+
+    return result;
 }
 
 function formatQueryResponse(responseBody) {
