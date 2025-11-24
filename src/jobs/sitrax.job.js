@@ -1,9 +1,11 @@
+// src/jobs/sitrax.job.js
 import { createLogger } from '../utils/logger.js';
 import { jobsConfig, sankhyaConfig, appConfig } from '../config/index.js';
 import { delay } from '../utils/dateTime.js';
 import { SankhyaTokenError } from '../utils/errors.js';
 import { createJobStateManager } from './job.scheduler.js';
 import statusManager from '../utils/statusManager.js'; 
+import sankhyaLocker from '../utils/sankhya.locker.js'; // NOVO: Importa o Locker
 
 import * as sitraxApi from '../connectors/sitrax.connector.js';
 import * as sankhyaProcessor from '../sankhya/sankhya.processor.js';
@@ -46,13 +48,17 @@ export async function run() {
       return;
     }
     
-    statusManager.updateJobStatus(JOB_NAME, 'running', `Processando ${cachedData.length} posições no Sankhya...`);
-    await sankhyaProcessor.processPositions(
-      cachedData,
-      JOB_NAME,
-      state.sankhyaUrl,
-      config.fabricanteId
-    );
+    // *** USO DO LOCKER ***
+    await sankhyaLocker.withLock(JOB_NAME, async () => {
+      statusManager.updateJobStatus(JOB_NAME, 'running', `Processando ${cachedData.length} posições no Sankhya (Aguardando Lock)...`);
+      await sankhyaProcessor.processPositions(
+        cachedData,
+        JOB_NAME,
+        state.sankhyaUrl,
+        config.fabricanteId
+      );
+    });
+    // *** FIM DO USO DO LOCKER ***
     
     state.handleSankhyaSuccess();
     state.clearCache(); 
